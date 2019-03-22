@@ -1,0 +1,312 @@
+<style lang="scss">
+@import 'src/assets/css/global.scss';
+page{
+  background-color: $ff;
+}
+.login-page {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  .banner {
+    position: relative;
+    image{
+      width: 100%;
+      height: 480rpx;
+    }
+    .banner-info{
+      padding: $s30 $s30 $s20;
+      .title{
+        font-size: $s36;
+        line-height: 1;
+        font-weight: bold;
+        color: $color;
+        margin-bottom: $s5;
+      }
+      text{
+        font-size: $s13;
+        line-height: 1;
+        color: $c3;
+      }
+    }
+  }
+  .login-form{
+    padding: 0rpx $s30;
+    .form-main-title{
+      font-size: $s20;
+      line-height: 1;
+      margin-bottom: $s25;
+      color: $s2;
+      font-weight: bold;
+    }
+    form{
+      .form-tel {
+        position: relative;
+        display: flex;
+        border-bottom: $s1 solid $ee;
+        align-items: center;
+        font-size: $s15;
+        margin-bottom: $s15;
+        .tel-l{
+          min-width: 230rpx;
+          padding-top: $s10;
+          padding-bottom: $s10;
+          color: $c3;
+          .form-title{
+            min-width: 150rpx;
+            display: inline-block;
+            color: $c3;
+          }
+        }
+        .tel-r{
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          color: $c3;
+          .input-tel{
+            color: $c3;
+          }
+          .glyph-icon{
+            &::before{
+              font-size: $s14;
+              color: #CECDCF;
+            }
+          }
+          .clear-hover{
+            &::before{
+              color: $color;
+            }
+          }
+        }
+      }
+      .form-code{
+        position: relative;
+        display: flex;
+        border-bottom: $s1 solid $dd;
+        align-items: center;
+        font-size: $s15;
+        .code-l{
+          min-width: 150rpx;
+          padding-top: $s10;
+          padding-bottom: $s10;
+          display: inline-block;
+          color: $c3;
+        }
+        .code-r{
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          color: $color;
+          .input-code{
+            color: $c3;
+            flex: 1;
+          }
+          .btn-disabled{
+            background: rgba(245,181,152,1);
+          }
+        }
+      }
+      .submit-btn{
+        margin-top: $s30;
+      }
+    }
+  }
+  .register-tip{
+    position: absolute;
+    left: 0;
+    bottom: $s20;
+    width: 100%;
+    text-align: center;
+    font-size: $s11;
+    line-height: $s16;
+    color: $c6;
+    .service{
+      display: inline-block;
+      color: $c6;
+    }
+    .service-hover{
+      color: $color;
+    }
+  }
+}
+</style>
+
+<template>
+  <view class="login-page">
+    <i-message id="message" />
+    <view class="banner">
+      <image src="/assets/images/slider.jpg" />
+      <view class="banner-info">
+        <view class="title">欢迎使用</view>
+        <text>请填写您的手机号码，注册或登录您的账户</text>
+      </view>
+    </view>
+    <view class="login-form">
+      <form bindsubmit="formSubmit">
+        <view class="form-tel">
+          <view class="tel-l"><view class="form-title">手机号码</view>+86</view>
+          <view class="tel-r"><input class="input-tel" name="mobile" type="number" value="{{mobile}}" bindinput="mobileInput" placeholder="填写手机号码" maxlength="11" focus="true" /><view @tap="clear" class="glyph-icon flaticon-cancel-button" hover-class="clear-hover"></view></view>
+        </view>
+        <view class="form-code">
+          <view class="code-l">验证码</view>
+          <view class="code-r">
+              <input class="input-code" name="code" type="text" maxlength="11" bindinput="codeInput" placeholder="请输入验证码" />
+              <button class="btn btn-disabled" wx:if="{{sendMsgDisabled}}" type="button" disabled>{{time + '秒后获取'}}</button>
+              <button class="btn" hover-class="btn-hover" @tap="sendCode" wx:else="{{sendMsgDisabled}}">发送验证码</button>
+          </view>
+        </view>
+        <button class="btn big-btn submit-btn" hover-class="btn-hover" disabled="{{!btnDisaled}}" formType="submit">下一步</button>
+      </form>
+    </view>
+    <view class="register-tip">点击确定，即表示您已阅读并同意<navigator class="service" url="/pages/page/service" hover-class="service-hover">《服务条款》</navigator></view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import tip from '@/request/tip'
+  import api from '@/request/api'
+  import WxValidate from '@/plugins/Validate/WxValidate'
+  import { TOKEN, OPENID, USER_INFO } from '@/request/constant'
+  var validate = ''
+  var validateMobile = ''
+  export default class login extends wepy.page {
+    config = {
+      navigationBarTitleText: '登录',
+      enablePullDownRefresh: false,
+      usingComponents: {
+        'i-message': '../../components/iview/message/index'
+      }
+    }
+    data = {
+      sendMsgDisabled: false,
+      // btnDisaled: true,
+      mobile: '',
+      time: 60,
+      code: ''
+    }
+    computed = {
+      btnDisaled: function() {
+        return (this.mobile && this.code)
+      }
+    }
+    methods = {
+      mobileInput(e) {
+        this.mobile = e.detail.value
+      },
+      codeInput(e) {
+        this.code = e.detail.value
+      },
+      clear() {
+        this.mobile = ''
+      },
+      async sendCode() {
+        let that = this
+        if (!validateMobile.checkForm({mobile: that.mobile})) {
+          let error = validateMobile.errorList[0]
+          console.log(validateMobile.errorList)
+          tip.message(error.msg, 'error')
+          return false
+        }
+        let code = await api.getCode({
+          query: {
+            mobile: that.mobile
+          },
+          method: 'POST'
+        })
+        if (code.statusCode === 200) {
+          if (code.data.success === true) {
+            tip.message(code.data.message, 'success')
+            that.sendMsgDisabled = true
+            let interval = setInterval(() => {
+              if ((that.time--) <= 0) {
+                that.time = 60
+                that.sendMsgDisabled = false
+                clearInterval(interval)
+                that.$apply()
+              }
+              that.$apply()
+            }, 1000)
+          } else {
+            tip.message(code.data.message, 'error')
+          }
+        }
+      },
+      async formSubmit(e) {
+        let that = this
+        let openid = wepy.getStorageSync(OPENID)
+        if (!validate.checkForm(e.detail.value)) {
+          const error = validate.errorList[0]
+          tip.message(error.msg, 'error')
+          return false
+        }
+        let submitForm = await api.verifyCode({
+          query: {
+            mobile: that.mobile,
+            code: that.code,
+            openid: openid
+          },
+          method: 'POST'
+        })
+        if (submitForm.statusCode === 200) {
+          if (submitForm.data.status === 'success') {
+            wepy.setStorageSync(USER_INFO, submitForm.data.data.user)
+            wepy.setStorageSync(TOKEN, submitForm.data.data.token.token_type + ' ' + submitForm.data.data.token.access_token)
+            wepy.$store.dispatch({
+              type: 'ISBIND',
+              payload: true
+            })
+            wepy.switchTab({
+              url: '/pages/index'
+            })
+          } else {
+            tip.message(submitForm.data.message, 'error')
+          }
+        }
+      }
+    }
+    onLoad() {
+      wx.getNetworkType({
+        success (res) {
+          const networkType = res.networkType
+          if (networkType === 'none') {
+            tip.message('数据请求失败，请检查网络', 'error')
+          }
+        }
+      })
+      const rule = {
+        mobile: {
+          required: true,
+          tel: true
+        }
+      }
+      const message = {
+        mobile: {
+          required: '请输入手机号码',
+          tel: '请输入正确的手机号码'
+        }
+      }
+      validateMobile = new WxValidate(rule, message)
+      const rules = {
+        mobile: {
+          required: true,
+          tel: true
+        },
+        code: {
+          required: true
+        }
+      }
+      const messages = {
+        mobile: {
+          required: '请输入手机号码',
+          tel: '请输入正确的手机号码'
+        },
+        code: {
+          required: '请输入验证码'
+        }
+      }
+      validate = new WxValidate(rules, messages)
+    }
+  }
+</script>

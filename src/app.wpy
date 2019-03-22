@@ -1,74 +1,79 @@
-<style lang="less">
-.container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  box-sizing: border-box;
-}
+<style lang="scss">
+  @import './assets/fonts/flaticon.scss';
+  @import './assets/css/general.scss';
 </style>
-
 <script>
-import wepy from 'wepy'
-import 'wepy-async-function'
-
-import { setStore } from 'wepy-redux'
-import configStore from './store'
-
-const store = configStore()
-setStore(store)
-
-export default class extends wepy.app {
-  config = {
-    pages: [
-      'pages/index'
-    ],
-    window: {
-      backgroundTextStyle: 'light',
-      navigationBarBackgroundColor: '#fff',
-      navigationBarTitleText: 'WeChat',
-      navigationBarTextStyle: 'black'
-    }
-  }
-
-  globalData = {
-    userInfo: null
-  }
-
-  constructor () {
-    super()
-    this.use('requestfix')
-  }
-
-  onLaunch() {
-    this.testAsync()
-  }
-
-  sleep (s) {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        resolve('promise resolved')
-      }, s * 1000)
-    })
-  }
-
-  async testAsync () {
-    const data = await this.sleep(3)
-    console.log(data)
-  }
-
-  getUserInfo(cb) {
-    const that = this
-    if (this.globalData.userInfo) {
-      return this.globalData.userInfo
-    }
-    wepy.getUserInfo({
-      success (res) {
-        that.globalData.userInfo = res.userInfo
-        cb && cb(res.userInfo)
+  import wepy from 'wepy'
+  import tip from '@/request/tip'
+  import 'wepy-async-function'
+  import { setStore } from 'wepy-redux'
+  import configStore from './store'
+  import { TOKEN, USER_INFO } from '@/request/constant'
+  const store = configStore()
+  setStore(store)
+  wepy.$store = store
+  export default class extends wepy.app {
+    config = {
+      pages: [
+        'pages/authorize',
+        'pages/index',
+        'pages/login'
+      ],
+      window: {
+        navigationBarBackgroundColor: '#ffffff',
+        navigationBarTextStyle: 'black',
+        backgroundColor: '#F2F3F7',
+        navigationBarTitleText: '连可连商城',
+        backgroundTextStyle: 'dark',
+        enablePullDownRefresh: true
+      },
+      tabBar: {
+        color: '#999999',
+        selectedColor: '#ff6a3c',
+        backgroundColor: '#ffffff',
+        borderStyle: 'black',
+        list: [{
+          pagePath: 'pages/index',
+          text: '首页',
+          iconPath: './assets/images/home.png',
+          selectedIconPath: './assets/images/home-active.png'
+        }, {
+          pagePath: 'pages/login',
+          text: '登陆',
+          iconPath: './assets/images/user.png',
+          selectedIconPath: './assets/images/user-active.png'
+        }]
       }
-    })
+    }
+    globalData = {}
+    constructor() {
+      super()
+      this.use('requestfix')
+      this.use('promisify')
+      this.intercept('request', {
+        success (request) {
+          if (request.statusCode === 400) {
+            tip.message(request.data.message, 'error')
+          }
+          if (request.statusCode === 401) {
+            wepy.removeStorageSync(TOKEN)
+            if (wepy.getStorageSync(USER_INFO).length <= 0) {
+              wepy.navigateTo({
+                url: '/pages/user/login'
+              })
+            } else {
+              wepy.navigateTo({
+                url: '/pages/authorize'
+              })
+            }
+          }
+          if (request.header.Authorization) {
+            wepy.setStorageSync(TOKEN, request.header.Authorization)
+          }
+          return request
+        }
+      })
+    }
+    async onLaunch() {}
   }
-}
 </script>
