@@ -95,7 +95,7 @@ export default class Index extends wepy.page {
   config = {
     navigationBarBackgroundColor: '#DC0816',
     navigationBarTextStyle: 'white',
-    navigationBarTitleText: '连可连商城',
+    navigationBarTitleText: '首页',
     usingComponents: {
       'i-message': '../components/iview/message/index',
       'i-row': '../components/iview/row/index',
